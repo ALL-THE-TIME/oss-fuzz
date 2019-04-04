@@ -54,6 +54,10 @@ if [[ $FUZZING_ENGINE = "none" ]]; then
   export COVERAGE_FLAGS=
 fi
 
+if [[ $FUZZING_ENGINE = "libfuzzer" ]]; then
+  export LIB_FUZZING_ENGINE="-fsanitize=fuzzer"
+fi
+
 export CFLAGS="$CFLAGS $SANITIZER_FLAGS $COVERAGE_FLAGS"
 export CXXFLAGS="$CFLAGS $CXXFLAGS_EXTRA"
 
