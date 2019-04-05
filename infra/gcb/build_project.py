@@ -159,6 +159,19 @@ def get_build_steps(project_dir):
           'name': 'gcr.io/cloud-builders/git',
       },
       {
+          'args': [
+              'fetch',
+          ],
+          'name': 'gcr.io/cloud-builders/git',
+      },
+      {
+          'args': [
+              'checkout',
+              'lf-build',
+          ],
+          'name': 'gcr.io/cloud-builders/git',
+      },
+      {
           'name': 'gcr.io/cloud-builders/docker',
           'args': [
               'build',
@@ -199,14 +212,14 @@ def get_build_steps(project_dir):
       zip_file = stamped_name + '.zip'
       stamped_srcmap_file = stamped_name + '.srcmap.json'
       bucket = ENGINE_INFO[fuzzing_engine].upload_bucket
-      upload_url = get_signed_url(UPLOAD_URL_FORMAT.format(bucket, name, 
-                                                           zip_file))
-      srcmap_url = get_signed_url(UPLOAD_URL_FORMAT.format(bucket, name,
-                                                           stamped_srcmap_file))
-      targets_list_filename = get_targets_list_filename(sanitizer)
-      targets_list_url = get_signed_url(
-          get_targets_list_url(bucket, name, sanitizer))
-
+#       upload_url = get_signed_url(UPLOAD_URL_FORMAT.format(bucket, name,
+#                                                            zip_file))
+#       srcmap_url = get_signed_url(UPLOAD_URL_FORMAT.format(bucket, name,
+#                                                            stamped_srcmap_file))
+#       targets_list_filename = get_targets_list_filename(sanitizer)
+#       targets_list_url = get_signed_url(
+#           get_targets_list_url(bucket, name, sanitizer))
+#
       env.append('OUT=' + out)
       env.append('MSAN_LIBS_PATH=/workspace/msan')
 
@@ -271,17 +284,17 @@ def get_build_steps(project_dir):
         })
 
       build_steps.extend([
-          # generate targets list
-          {
-              'name':
-                  'gcr.io/oss-fuzz-base/base-runner',
-              'env': env,
-              'args': [
-                  'bash',
-                  '-c',
-                  'targets_list > /workspace/{0}'.format(targets_list_filename),
-              ],
-          },
+          # # generate targets list
+          # {
+          #     'name':
+          #         'gcr.io/oss-fuzz-base/base-runner',
+          #     'env': env,
+          #     'args': [
+          #         'bash',
+          #         '-c',
+          #         'targets_list > /workspace/{0}'.format(targets_list_filename),
+          #     ],
+          # },
           # zip binaries
           {
               'name':
@@ -290,31 +303,31 @@ def get_build_steps(project_dir):
                   'bash', '-c', 'cd {0} && zip -r {1} *'.format(out, zip_file)
               ],
           },
-          # upload srcmap
-          {
-              'name': 'gcr.io/oss-fuzz-base/uploader',
-              'args': [
-                  '/workspace/srcmap.json',
-                  srcmap_url,
-              ],
-          },
-          # upload binaries
-          {
-              'name': 'gcr.io/oss-fuzz-base/uploader',
-              'args': [
-                  os.path.join(out, zip_file),
-                  upload_url,
-              ],
-          },
-          # upload targets list
-          {
-              'name':
-                  'gcr.io/oss-fuzz-base/uploader',
-              'args': [
-                  '/workspace/{0}'.format(targets_list_filename),
-                  targets_list_url,
-              ],
-          },
+          # # upload srcmap
+          # {
+          #     'name': 'gcr.io/oss-fuzz-base/uploader',
+          #     'args': [
+          #         '/workspace/srcmap.json',
+          #         srcmap_url,
+          #     ],
+          # },
+          # # upload binaries
+          # {
+          #     'name': 'gcr.io/oss-fuzz-base/uploader',
+          #     'args': [
+          #         os.path.join(out, zip_file),
+          #         upload_url,
+          #     ],
+          # },
+          # # upload targets list
+          # {
+          #     'name':
+          #         'gcr.io/oss-fuzz-base/uploader',
+          #     'args': [
+          #         '/workspace/{0}'.format(targets_list_filename),
+          #         targets_list_url,
+          #     ],
+          # },
           # cleanup
           {
               'name': image,
@@ -331,7 +344,7 @@ def get_build_steps(project_dir):
 
 def get_logs_url(build_id):
   URL_FORMAT = ('https://console.developers.google.com/logs/viewer?'
-                'resource=build%2Fbuild_id%2F{0}&project=oss-fuzz')
+                'resource=build%2Fbuild_id%2F{0}&project=oss-fuzz-build')
   return URL_FORMAT.format(build_id)
 
 
@@ -354,7 +367,7 @@ def run_build(build_steps, project_name, tag):
       'steps': build_steps,
       'timeout': str(BUILD_TIMEOUT) + 's',
       'options': options,
-      'logsBucket': GCB_LOGS_BUCKET,
+      # 'logsBucket': GCB_LOGS_BUCKET,
       'tags': [
           project_name + '-' + tag,
       ],
@@ -363,7 +376,7 @@ def run_build(build_steps, project_name, tag):
   credentials = GoogleCredentials.get_application_default()
   cloudbuild = build('cloudbuild', 'v1', credentials=credentials)
   build_info = cloudbuild.projects().builds().create(
-      projectId='oss-fuzz', body=build_body).execute()
+      projectId='oss-fuzz-build', body=build_body).execute()
   build_id = build_info['metadata']['build']['id']
 
   print >> sys.stderr, 'Logs:', get_logs_url(build_id)
